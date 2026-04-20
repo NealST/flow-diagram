@@ -33,7 +33,7 @@ This project uses [Tailwind CSS](https://tailwindcss.com/) for styling.
 
 If you prefer not to use Tailwind CSS:
 
-1. Remove the starter pages in `src/routes/index.tsx` and `src/routes/about.tsx`
+1. Replace the content in `src/routes/index.tsx` and `src/routes/about.tsx` (or update header navigation to match your routes)
 2. Replace the Tailwind import in `src/styles.css` with your own styles
 3. Remove `tailwindcss()` from the plugins array in `vite.config.ts`
 4. Uninstall the packages: `npm uninstall @tailwindcss/vite @tailwindcss/typography tailwindcss`
