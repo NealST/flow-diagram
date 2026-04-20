@@ -52,7 +52,7 @@ function App() {
             'Tailwind Native',
             'Design quickly with utility-first styling and reusable tokens.',
           ],
-        ].map(([title, desc], index) => (
+        ].map(([title, description], index) => (
           <article
             key={title}
             className="island-shell feature-card rise-in rounded-2xl p-5"
@@ -61,7 +61,7 @@ function App() {
             <h2 className="mb-2 text-base font-semibold text-[var(--sea-ink)]">
               {title}
             </h2>
-            <p className="m-0 text-sm text-[var(--sea-ink-soft)]">{desc}</p>
+            <p className="m-0 text-sm text-[var(--sea-ink-soft)]">{description}</p>
           </article>
         ))}
       </section>
