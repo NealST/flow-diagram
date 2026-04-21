@@ -9,6 +9,11 @@ import tailwindcss from '@tailwindcss/vite'
 const config = defineConfig({
   resolve: { tsconfigPaths: true },
   plugins: [devtools(), tailwindcss(), tanstackStart(), viteReact()],
+  optimizeDeps: {
+    include: [
+      'use-sync-external-store/shim/with-selector',
+    ],
+  },
 })
 
 export default config

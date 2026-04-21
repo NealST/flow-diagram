@@ -1,11 +1,14 @@
-import { Handle, Position, type NodeProps, type Node } from '@xyflow/react'
+import { useState } from 'react'
+import { Handle, Position, type NodeProps, type Node, useReactFlow } from '@xyflow/react'
 import { NodeIcon } from '../icons'
+import { NodeStylePopover, ROLE_COLORS, ROLE_ICONS } from './NodeStylePopover'
+import { hexToScheme } from './colorUtils'
 
 export type RoleNodeData = {
   label: string
   description?: string
   icon?: string
-  color?: 'blue' | 'green' | 'orange' | 'purple' | 'pink' | 'teal' | 'red'
+  color?: string
 }
 
 const colorMap = {
@@ -60,8 +63,12 @@ const colorMap = {
   },
 }
 
-export function RoleNode({ data }: NodeProps<Node<RoleNodeData>>) {
-  const scheme = colorMap[data.color ?? 'blue']
+export function RoleNode({ id, data }: NodeProps<Node<RoleNodeData>>) {
+  const { updateNodeData } = useReactFlow()
+  const c = data.color ?? 'blue'
+  const scheme = c in colorMap ? colorMap[c as keyof typeof colorMap] : hexToScheme(c)
+  const [editingLabel, setEditingLabel] = useState(false)
+  const [editingDesc, setEditingDesc] = useState(false)
 
   return (
     <div
@@ -85,14 +92,73 @@ export function RoleNode({ data }: NodeProps<Node<RoleNodeData>>) {
       )}
 
       <div className="role-node-content">
-        <div className="role-node-label">{data.label}</div>
-        {data.description && (
-          <div className="role-node-desc">{data.description}</div>
+        {editingLabel ? (
+          <input
+            className="role-node-label-input"
+            defaultValue={data.label}
+            style={{ color: scheme.text }}
+            autoFocus
+            onBlur={(e) => {
+              updateNodeData(id, { label: e.target.value })
+              setEditingLabel(false)
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+              if (e.key === 'Escape') setEditingLabel(false)
+              e.stopPropagation()
+            }}
+            onClick={(e) => e.stopPropagation()}
+          />
+        ) : (
+          <div
+            className="role-node-label"
+            onDoubleClick={(e) => { e.stopPropagation(); setEditingLabel(true) }}
+            title="双击编辑名称"
+          >
+            {data.label}
+          </div>
+        )}
+
+        {editingDesc ? (
+          <input
+            className="role-node-desc-input"
+            defaultValue={data.description}
+            style={{ color: scheme.text }}
+            autoFocus
+            placeholder="描述..."
+            onBlur={(e) => {
+              updateNodeData(id, { description: e.target.value })
+              setEditingDesc(false)
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+              if (e.key === 'Escape') setEditingDesc(false)
+              e.stopPropagation()
+            }}
+            onClick={(e) => e.stopPropagation()}
+          />
+        ) : (
+          <div
+            className="role-node-desc"
+            onDoubleClick={(e) => { e.stopPropagation(); setEditingDesc(true) }}
+            title="双击编辑描述"
+          >
+            {data.description || <span style={{ opacity: 0.4 }}>双击添加描述</span>}
+          </div>
         )}
       </div>
 
       <Handle type="source" position={Position.Bottom} className="flow-handle" />
       <Handle type="source" position={Position.Right} id="right" className="flow-handle" />
+
+      <NodeStylePopover
+        color={data.color ?? 'blue'}
+        icon={data.icon}
+        colors={ROLE_COLORS}
+        icons={ROLE_ICONS}
+        onColorChange={(c) => updateNodeData(id, { color: c })}
+        onIconChange={(ic) => updateNodeData(id, { icon: ic })}
+      />
     </div>
   )
 }

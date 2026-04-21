@@ -190,6 +190,11 @@ textarea:focus-visible {
   outline-offset: 2px;
 }
 
+/* Chat textarea: focus indication is handled by the wrapper — suppress the raw outline */
+.chat-input:focus-visible {
+  outline: none;
+}
+
 .island-shell {
   border: 1px solid var(--line);
   background: linear-gradient(165deg, var(--surface-strong), var(--surface));

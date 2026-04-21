@@ -6,14 +6,14 @@
 import { toPng, toSvg } from 'html-to-image'
 import { getViewportForBounds, type Rect } from '@xyflow/react'
 
-const EXPORT_PADDING = 50
+const EXPORT_PADDING = 20 // px of whitespace on each side
 
 /** Get the .react-flow__viewport element, the target for html-to-image */
 function getViewportEl(container: HTMLElement): HTMLElement | null {
   return container.querySelector('.react-flow__viewport') as HTMLElement | null
 }
 
-/** Common filter: hide controls, minimap, attribution, background */
+/** Common filter: hide controls, minimap, attribution, handles, selection indicators */
 function exportFilter(node: HTMLElement | SVGElement): boolean {
   const exclude = [
     'react-flow__minimap',
@@ -21,6 +21,10 @@ function exportFilter(node: HTMLElement | SVGElement): boolean {
     'react-flow__panel',
     'react-flow__attribution',
     'export-panel-container',
+    'react-flow__handle',
+    'react-flow__nodesselection',
+    'react-flow__selection',
+    'react-flow__resize-control',
   ]
   if (node.classList) {
     for (const cls of exclude) {
@@ -28,6 +32,19 @@ function exportFilter(node: HTMLElement | SVGElement): boolean {
     }
   }
   return true
+}
+
+/** Inject temporary CSS to hide selection states + handles during capture */
+function injectExportStyles(viewport: HTMLElement): HTMLStyleElement {
+  const style = document.createElement('style')
+  style.textContent = `
+    .react-flow__handle { display: none !important; }
+    .react-flow__node.selected > * { outline: none !important; box-shadow: none !important; }
+    .react-flow__node.selected { outline: none !important; }
+    .react-flow__nodesselection-rect { display: none !important; }
+  `
+  viewport.appendChild(style)
+  return style
 }
 
 // ─── Static PNG Export ──────────────────────────────────────────────
@@ -42,29 +59,34 @@ export async function exportToPNG(
   const imageWidth = nodesBounds.width + EXPORT_PADDING * 2
   const imageHeight = nodesBounds.height + EXPORT_PADDING * 2
 
+  // padding arg is a ratio (0 = no extra padding); pixel padding is already in imageWidth/Height
   const transform = getViewportForBounds(
     nodesBounds,
     imageWidth,
     imageHeight,
     0.5,
     2,
-    EXPORT_PADDING,
+    0,
   )
 
-  const dataUrl = await toPng(viewport, {
-    backgroundColor: '#ffffff',
-    width: imageWidth,
-    height: imageHeight,
-    style: {
-      width: `${imageWidth}px`,
-      height: `${imageHeight}px`,
-      transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.zoom})`,
-    },
-    pixelRatio: scale,
-    filter: exportFilter,
-  })
-
-  download(dataUrl, 'flow-diagram.png')
+  const tempStyle = injectExportStyles(viewport)
+  try {
+    const dataUrl = await toPng(viewport, {
+      backgroundColor: '#ffffff',
+      width: imageWidth,
+      height: imageHeight,
+      style: {
+        width: `${imageWidth}px`,
+        height: `${imageHeight}px`,
+        transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.zoom})`,
+      },
+      pixelRatio: scale,
+      filter: exportFilter,
+    })
+    download(dataUrl, 'flow-diagram.png')
+  } finally {
+    viewport.removeChild(tempStyle)
+  }
 }
 
 // ─── Static SVG Export ──────────────────────────────────────────────
@@ -84,25 +106,28 @@ export async function exportToSVG(
     imageHeight,
     0.5,
     2,
-    EXPORT_PADDING,
+    0,
   )
 
-  const dataUrl = await toSvg(viewport, {
-    backgroundColor: '#ffffff',
-    width: imageWidth,
-    height: imageHeight,
-    style: {
-      width: `${imageWidth}px`,
-      height: `${imageHeight}px`,
-      transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.zoom})`,
-    },
-    filter: exportFilter,
-  })
-
-  // Convert data URL to blob and download
-  const res = await fetch(dataUrl)
-  const blob = await res.blob()
-  downloadBlob(blob, 'flow-diagram.svg')
+  const tempStyle = injectExportStyles(viewport)
+  try {
+    const dataUrl = await toSvg(viewport, {
+      backgroundColor: '#ffffff',
+      width: imageWidth,
+      height: imageHeight,
+      style: {
+        width: `${imageWidth}px`,
+        height: `${imageHeight}px`,
+        transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.zoom})`,
+      },
+      filter: exportFilter,
+    })
+    const res = await fetch(dataUrl)
+    const blob = await res.blob()
+    downloadBlob(blob, 'flow-diagram.svg')
+  } finally {
+    viewport.removeChild(tempStyle)
+  }
 }
 
 // ─── Animated SVG Export ────────────────────────────────────────────
@@ -123,20 +148,26 @@ export async function exportToAnimatedSVG(
     imageHeight,
     0.5,
     2,
-    EXPORT_PADDING,
+    0,
   )
 
-  const dataUrl = await toSvg(viewport, {
-    backgroundColor: '#ffffff',
-    width: imageWidth,
-    height: imageHeight,
-    style: {
-      width: `${imageWidth}px`,
-      height: `${imageHeight}px`,
-      transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.zoom})`,
-    },
-    filter: exportFilter,
-  })
+  const tempStyle = injectExportStyles(viewport)
+  let dataUrl: string
+  try {
+    dataUrl = await toSvg(viewport, {
+      backgroundColor: '#ffffff',
+      width: imageWidth,
+      height: imageHeight,
+      style: {
+        width: `${imageWidth}px`,
+        height: `${imageHeight}px`,
+        transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.zoom})`,
+      },
+      filter: exportFilter,
+    })
+  } finally {
+    viewport.removeChild(tempStyle)
+  }
 
   // Inject animation keyframes into the exported SVG
   const svgText = decodeURIComponent(dataUrl.split(',')[1] ?? '')

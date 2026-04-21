@@ -1,4 +1,5 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useReactFlow } from '@xyflow/react'
 import { DownloadIcon, ImageIcon, RulerIcon, SparkleIcon, FilmIcon, PackageIcon, CheckIcon, LoaderIcon } from './icons'
 import {
@@ -11,9 +12,10 @@ import {
 
 type ExportPanelProps = {
   canvasRef: React.RefObject<HTMLDivElement | null>
+  headerActionsRef: React.RefObject<HTMLDivElement | null>
 }
 
-export function ExportPanel({ canvasRef }: ExportPanelProps) {
+export function ExportPanel({ canvasRef, headerActionsRef }: ExportPanelProps) {
   const { getNodes, getEdges, getNodesBounds } = useReactFlow()
   const [open, setOpen] = useState(false)
   const [recording, setRecording] = useState(false)
@@ -21,6 +23,26 @@ export function ExportPanel({ canvasRef }: ExportPanelProps) {
   const [exporting, setExporting] = useState<string | null>(null)
   const recorderRef = useRef<{ stop: () => void; recording: Promise<Blob> } | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval>>(null)
+  const [portalReady, setPortalReady] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setPortalReady(true)
+  }, [])
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as Node
+      // Check both the toggle button (inside portal) and the dropdown container
+      if (containerRef.current && !containerRef.current.contains(target)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [open])
 
   const getContainer = useCallback(() => {
     return canvasRef.current?.querySelector('.react-flow') as HTMLElement | null
@@ -117,25 +139,26 @@ export function ExportPanel({ canvasRef }: ExportPanelProps) {
     return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`
   }
 
-  return (
-    <div className="export-panel-container">
-      {/* Toggle button */}
+  if (!portalReady || !headerActionsRef.current) return null
+
+  const panelUI = (
+    <div className="export-panel-container" ref={containerRef}>
+      {/* Toggle button — lives in header */}
       <button
         className="export-toggle-btn"
         onClick={() => setOpen((v) => !v)}
         title="导出"
+        data-active={open}
       >
         {recording ? (
           <span className="export-recording-dot" />
         ) : (
-          <DownloadIcon size={16} />
+          <DownloadIcon size={15} />
         )}
-        {recording && (
-          <span className="export-recording-time">{formatTime(recordTime)}</span>
-        )}
+        <span>{recording ? formatTime(recordTime) : '导出'}</span>
       </button>
 
-      {/* Dropdown panel */}
+      {/* Dropdown — fixed below header */}
       {open && (
         <div className="export-dropdown">
           <div className="export-dropdown-header">
@@ -206,4 +229,6 @@ export function ExportPanel({ canvasRef }: ExportPanelProps) {
       )}
     </div>
   )
+
+  return createPortal(panelUI, headerActionsRef.current)
 }

@@ -1,10 +1,13 @@
 import {
   BaseEdge,
+  EdgeLabelRenderer,
   type EdgeProps,
   type Edge,
   getSmoothStepPath,
   getBezierPath,
+  useReactFlow,
 } from '@xyflow/react'
+import { useState } from 'react'
 
 export type AnimatedEdgeData = {
   label?: string
@@ -27,12 +30,24 @@ export function AnimatedFlowEdge({
   targetPosition,
   data,
   markerEnd,
+  selected,
 }: EdgeProps<Edge<AnimatedEdgeData>>) {
+  const { setEdges } = useReactFlow()
+  const [editing, setEditing] = useState(false)
   const color = data?.color ?? '#3b82f6'
   const speed = speedMap[data?.speed ?? 'normal']
   const particleCount = data?.particleCount ?? 3
   const pathType = data?.pathType ?? 'smoothstep'
   const edgeOffset = data?.offset ?? 25
+
+  const saveLabel = (val: string) => {
+    setEdges((eds) =>
+      eds.map((e) =>
+        e.id === id ? { ...e, data: { ...e.data, label: val.trim() || undefined } } : e,
+      ),
+    )
+    setEditing(false)
+  }
 
   const [edgePath, labelX, labelY] =
     pathType === 'bezier'
@@ -105,20 +120,44 @@ export function AnimatedFlowEdge({
         </filter>
       </defs>
 
-      {/* Edge label */}
-      {data?.label && (
-        <foreignObject
-          x={labelX - 50}
-          y={labelY - 12}
-          width={100}
-          height={24}
-          requiredExtensions="http://www.w3.org/1999/xhtml"
+      {/* Edge label — rendered as HTML via EdgeLabelRenderer so it supports real inputs */}
+      <EdgeLabelRenderer>
+        <div
+          className={`edge-label-anchor nodrag nopan${selected || data?.label ? ' visible' : ''}`}
+          style={{
+            position: 'absolute',
+            transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+            pointerEvents: 'all',
+          }}
+          onDoubleClick={(e) => { e.stopPropagation(); setEditing(true) }}
         >
-          <div className="animated-edge-label" style={{ borderColor: color, color }}>
-            {data.label}
-          </div>
-        </foreignObject>
-      )}
+          {editing ? (
+            <input
+              className="edge-label-input"
+              style={{ borderColor: color, color }}
+              defaultValue={data?.label ?? ''}
+              autoFocus
+              placeholder="添加标注..."
+              onBlur={(e) => saveLabel(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+                if (e.key === 'Escape') setEditing(false)
+                e.stopPropagation()
+              }}
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            <div
+              className={`edge-label-display${data?.label ? ' has-label' : ' empty-label'}`}
+              style={data?.label ? { borderColor: color, color } : {}}
+              title="双击添加标注"
+            >
+              {data?.label ?? '+'}
+            </div>
+          )}
+        </div>
+      </EdgeLabelRenderer>
     </>
   )
 }
+
